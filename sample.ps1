@@ -1,0 +1,1 @@
+.\VaultSync.ps1 -IdaptiveTenant "aac4055" -IdaptiveApplicationId "cca6c859-07ee-4598-a8ad-7718f175651e"
