@@ -26,6 +26,16 @@ param
 	[String]$IdaptiveAPIAccount
 )
 
+Function Get-ApiKey {
+    Write-Host "Retrieve ApiKey from Credential provider"
+	return (& "C:\Program Files (x86)\CyberArk\ApplicationPasswordSdk\CLIPasswordSDK.exe" GetPassword /p AppDescs.AppID=$ProviderAppId /p Query="Object=$IdaptiveAPIAccount" /o Password)
+}
+
+Function Get-ServiceAccount {
+    Write-Host "Retrieve Service Account from Credential provider"
+	return (& "C:\Program Files (x86)\CyberArk\ApplicationPasswordSdk\CLIPasswordSDK.exe" GetPassword /p AppDescs.AppID=$ProviderAppId /p Query="Object=$IdaptiveServiceAccount" /o Password,PassProps.UserName)
+}
+
 Function Get-Token {
 param($apiKey)
 $GetToken = @{
@@ -38,8 +48,7 @@ $GetToken = @{
 	}
 }
 
- 
-
+Write-Host "Login with ApiKey to get a token" 
 $AccessToken = Invoke-RestMethod @GetToken
 
 $TOKEN = $AccessToken.psobject.properties["access_token"].value
@@ -57,7 +66,7 @@ Invoke-RestMethod @GetUPData -ContentType "application/json"
 }
 
 Function Update-AppInfo {
-param($token)
+param($token,$username,$password)
 $URI            = "https://$IdaptiveTenant.my.idaptive.app/SaasManage/UpdateApplicationDE"
 
 $Method = 'Post'
@@ -70,20 +79,22 @@ $Body =  @{
 	ADAttribute = "userprinciplename"
     _RowKey = "$IdaptiveApplicationId"
     Name = "Managed App"
-	UserName = "Kommt noch"
-	Password = "Aus dem CP"
-	UserNameArg = "Kommt noch"
+	UserName = "$username"
+	Password = "$password"
+	UserNameArg = "$username"
 	UserNameStrategy = "Fixed"
 	UserMapScript = ""
 } | ConvertTo-Json
-
+Write-Host "Updating the application" 
 Invoke-RestMethod -Verbose -URI $URI -Headers $Headers -Body $Body -Method $Method -ContentType "application/json" 
 	
 }
 
-$token = Get-Token -apiKey 
+$apiKey = Get-ApiKey 
+$token = Get-Token -apiKey $apiKey
 $appInfo = Get-AppInfo -token $token
-$newInfo = Update-AppInfo -token $token
+$serviceAccount = (Get-ServiceAccount).split(",")
+$updateInfo = Update-AppInfo -token $token -username $serviceAccount[1] -password $serviceAccount[0]
 $newInfo = Get-AppInfo -token $token
 $newInfo
 
